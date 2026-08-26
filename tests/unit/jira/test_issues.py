@@ -63,6 +63,65 @@ class TestIssuesMixin:
         assert result.status.name == "Open"
         assert result.issue_type.name == "Bug"
 
+    def test_get_issue_default_fields_include_relationships(
+        self, issues_mixin: IssuesMixin
+    ):
+        """Regression test for AIDEV-480: with default fields, parent,
+        subtasks and issuelinks present in the REST response must survive
+        into the simplified dict instead of being silently dropped."""
+        issue_data = {
+            "id": "12345",
+            "key": "TEST-123",
+            "fields": {
+                "summary": "Test Issue",
+                "description": "This is a test issue",
+                "status": {"name": "Open"},
+                "issuetype": {"name": "Story"},
+                "created": "2023-01-01T00:00:00.000+0000",
+                "updated": "2023-01-02T00:00:00.000+0000",
+                "parent": {"key": "TEST-1", "summary": "Parent story"},
+                "subtasks": [
+                    {"key": "TEST-124", "summary": "Subtask A"},
+                    {"key": "TEST-125", "summary": "Subtask B"},
+                ],
+                "issuelinks": [
+                    {
+                        "id": "10001",
+                        "type": {
+                            "name": "Blocks",
+                            "inward": "is blocked by",
+                            "outward": "blocks",
+                        },
+                        "outwardIssue": {
+                            "key": "TEST-126",
+                            "fields": {"summary": "Blocked issue"},
+                        },
+                    }
+                ],
+            },
+        }
+
+        issues_mixin.jira.get_issue.return_value = issue_data
+
+        result = issues_mixin.get_issue("TEST-123")
+
+        # The default REST request itself asks for the relationship fields
+        call_args = issues_mixin.jira.get_issue.call_args
+        fields_param = call_args[1]["fields"]
+        assert "parent" in fields_param
+        assert "subtasks" in fields_param
+        assert "issuelinks" in fields_param
+
+        simplified = result.to_simplified_dict()
+        assert simplified["parent"] == {"key": "TEST-1", "summary": "Parent story"}
+        assert [st["key"] for st in simplified["subtasks"]] == [
+            "TEST-124",
+            "TEST-125",
+        ]
+        link = next(ln for ln in simplified["issuelinks"] if ln["id"] == "10001")
+        assert link["type"]["name"] == "Blocks"
+        assert link["outward_issue"]["key"] == "TEST-126"
+
     def test_get_issue_with_comments(self, issues_mixin: IssuesMixin, make_issue_data):
         """Test get_issue with comments."""
         comments_data = {

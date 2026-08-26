@@ -311,4 +311,10 @@ DEFAULT_READ_JIRA_FIELDS: set[str] = {
     "created",
     "updated",
     "issuetype",
+    # Relationship fields: absent values here are indistinguishable from
+    # empty ones downstream, so these must never be silently dropped.
+    # See AIDEV-480.
+    "parent",
+    "subtasks",
+    "issuelinks",
 }

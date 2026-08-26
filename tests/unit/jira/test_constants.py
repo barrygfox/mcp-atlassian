@@ -13,7 +13,7 @@ class TestDefaultReadJiraFields:
         """Test that DEFAULT_READ_JIRA_FIELDS is a set of strings."""
         assert isinstance(DEFAULT_READ_JIRA_FIELDS, set)
         assert all(isinstance(field, str) for field in DEFAULT_READ_JIRA_FIELDS)
-        assert len(DEFAULT_READ_JIRA_FIELDS) == 11
+        assert len(DEFAULT_READ_JIRA_FIELDS) == 14
 
     def test_contains_expected_jira_fields(self):
         """Test that DEFAULT_READ_JIRA_FIELDS contains the correct Jira fields."""
@@ -29,6 +29,9 @@ class TestDefaultReadJiraFields:
             "created",
             "updated",
             "issuetype",
+            "parent",
+            "subtasks",
+            "issuelinks",
         }
         assert DEFAULT_READ_JIRA_FIELDS == expected_fields
 
@@ -36,6 +39,12 @@ class TestDefaultReadJiraFields:
         """Test that essential Jira fields are included."""
         essential_fields = {"summary", "status", "issuetype"}
         assert essential_fields.issubset(DEFAULT_READ_JIRA_FIELDS)
+
+    def test_relationship_fields_present(self):
+        """Regression test for AIDEV-480: relationship fields must be read by
+        default so present values are never silently dropped from responses."""
+        relationship_fields = {"parent", "subtasks", "issuelinks"}
+        assert relationship_fields.issubset(DEFAULT_READ_JIRA_FIELDS)
 
     def test_field_format_validity(self):
         """Test that field names are valid for API usage."""
