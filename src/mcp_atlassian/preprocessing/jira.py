@@ -526,7 +526,13 @@ class JiraPreprocessor(BasePreprocessor):
             )
 
         def protect_markdown_autolink_target(match: re.Match[str]) -> str:
-            return "<" + store_markdown_url_target(match.group(1)) + ">"
+            # Emit the final Jira link form here so no later rule needs to
+            # rewrite <...> spans. The previous approach restored the bare
+            # target inside angle brackets and relied on a catch-all
+            # ``<([^>]+)>`` substitution to convert it, which also rewrote
+            # every other paired angle-bracket span (HTML comments,
+            # comparison prose) into bogus links (AIDEV-484).
+            return "[" + store_markdown_url_target(match.group(1)) + "]"
 
         output = re.sub(
             r"(!?\[[^\]\n]*\]\()([^)]+)(\))",
@@ -642,7 +648,15 @@ class JiraPreprocessor(BasePreprocessor):
 
         # Links
         output = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"[\1|\2]", output)
-        output = re.sub(r"<([^>]+)>", r"[\1]", output)
+        #
+        # NOTE: there is deliberately no ``<([^>]+)>`` -> ``[\1]`` rule here.
+        # Markdown autolinks were already converted to Jira link syntax at
+        # protection time (see protect_markdown_autolink_target). A generic
+        # angle-bracket rewrite at this point would corrupt every remaining
+        # paired span -- HTML comments became ``[!-- ... --]`` and comparison
+        # prose such as ``a < b and c > d`` became a link (AIDEV-484).
+        # Anything still containing angle brackets is literal user content
+        # and must be stored verbatim.
 
         # Convert markdown tables to Jira table format
         # Issue #1343: parse full table blocks (header + separator + data rows),

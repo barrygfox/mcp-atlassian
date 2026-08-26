@@ -977,6 +977,54 @@ def test_markdown_to_jira_preserves_underscores_in_url_targets(
     )
 
 
+# AIDEV-484 regression tests - angle-bracket autolink catch-all
+
+
+def test_markdown_to_jira_preserves_html_comment(preprocessor_with_jira):
+    """A paired <...> span that is not an autolink must be stored verbatim."""
+    assert (
+        preprocessor_with_jira.markdown_to_jira("plain <!-- comment --> in prose")
+        == "plain <!-- comment --> in prose"
+    )
+
+
+def test_markdown_to_jira_preserves_comparison_prose(preprocessor_with_jira):
+    """Comparison prose with two angle brackets must not become a link."""
+    assert (
+        preprocessor_with_jira.markdown_to_jira("a < b and c > d") == "a < b and c > d"
+    )
+
+
+def test_markdown_to_jira_literal_brace_monospace_preserves_angle_brackets(
+    preprocessor_with_jira,
+):
+    """Literal {{...}} monospace gets no placeholder shielding, so its
+    contents must survive the conversion byte-exact."""
+    assert (
+        preprocessor_with_jira.markdown_to_jira("{{<other> brackets}}")
+        == "{{<other> brackets}}"
+    )
+
+
+def test_markdown_to_jira_email_autolink_still_converts(preprocessor_with_jira):
+    """The narrowed autolink handling must keep converting <email>."""
+    assert (
+        preprocessor_with_jira.markdown_to_jira("<user@example.com>")
+        == "[user@example.com]"
+    )
+
+
+def test_markdown_to_jira_autolink_and_bare_brackets_combined(preprocessor_with_jira):
+    """Unhappy path: autolink converts while other angle-bracket spans on the
+    same line stay literal."""
+    result = preprocessor_with_jira.markdown_to_jira(
+        "see <https://example.com> and a < b and c > d plus <!-- note -->"
+    )
+    assert result == (
+        "see [https://example.com] and a < b and c > d plus <!-- note -->"
+    )
+
+
 # Issue #893 regression tests - Code Block Content Corruption
 
 
